@@ -8,7 +8,8 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import React, { useLayoutEffect } from "react";
+
+import React, { useEffect, useLayoutEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import {
   UserIcon,
@@ -17,9 +18,14 @@ import {
   AdjustmentsVerticalIcon,
 } from "react-native-heroicons/outline";
 import Categories from "../components/Categories";
+import FeaturedRow from "../components/FeaturedRow";
+import SanityClient from "../sanity";
+
+const statusBarStyle = Platform.OS === "ios" ? "dark-content" : "light-content";
 
 const HomeScreen = () => {
   const navigation = useNavigation();
+  const [featuredCategories, setFeaturedCategories] = useState([]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -27,8 +33,25 @@ const HomeScreen = () => {
     });
   }, []);
 
-  const statusBarStyle =
-    Platform.OS === "ios" ? "dark-content" : "light-content";
+  useEffect(() => {
+    SanityClient.fetch(
+      `
+      *[_type == "featured"]{
+        ...,
+        restaurants[]->{
+          ...,
+          dishes[]->
+        }
+      }
+      `
+    )
+      .then((data) => {
+        setFeaturedCategories(data);
+      })
+      .catch((error) => {
+        console.error("Error fetching data:", error);
+      });
+  }, []);
 
   return (
     <>
@@ -55,7 +78,7 @@ const HomeScreen = () => {
         </View>
         {/* Search */}
         <View className="flex-row items-center space-x-2 pb-2 mx-4">
-          <View className="flex-row space-x-2 flex-1 bg-gray-200 p-3">
+          <View className="flex-row space-x-2 flex-1 bg-gray-200 items-center p-3">
             <MagnifyingGlassIcon size={20} color="grey" />
             <TextInput
               placeholder="Restaurants and cuisines"
@@ -65,14 +88,26 @@ const HomeScreen = () => {
           </View>
           <AdjustmentsVerticalIcon color="#00CCBB" />
         </View>
-
         {/* Body */}
+        <ScrollView
+          className="bg-gray-100"
+          contentContainerStyle={{
+            paddingBottom: 100,
+          }}
+        >
+          {/* Catrgories */}
+          <Categories />
+          {/* Features Rows */}
+          {featuredCategories?.map((category) => (
+            <FeaturedRow
+              key={category._id}
+              id={category._id}
+              title={category.name}
+              description={category.short_description}
+            />
+          ))}
+        </ScrollView>
       </SafeAreaView>
-      <ScrollView>
-        {/* Catrgories */}
-        <Categories />
-        {/* Features Rows */}
-      </ScrollView>
     </>
   );
 };
